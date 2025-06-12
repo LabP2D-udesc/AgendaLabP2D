@@ -60,11 +60,12 @@
           right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
         events: {
-          url: 'https://www.googleapis.com/calendar/v3/calendars/udesc.labp2d@gmail.com/events?key=AIzaSyBVed9Sl7ylWLC2eIMZXoGezSPQUPjZJ1I',
+          url: 'https://us-central1-agendalabp2d.cloudfunctions.net/getEventos',
           failure: function () {
             document.getElementById('error-message').style.display = 'block';
           }
         }
+
       });
       calendar.render();
     });
