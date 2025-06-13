@@ -1,198 +1,127 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agenda LabP2D</title>
-
-  <!-- FullCalendar CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet" />
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda LABP2D</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
       padding: 20px;
-      background: #f4f4f4;
     }
-
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
     #calendar {
       max-width: 900px;
-      margin: 0 auto 20px;
-      background-color: #fff;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      min-height: 600px;
-    }
-
-    form {
-      max-width: 400px;
-      margin: 0 auto 40px;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-
-    input, button {
-      width: 100%;
-      margin-bottom: 15px;
-      padding: 8px;
-      box-sizing: border-box;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-    }
-
-    button {
-      background-color: #007bff;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:disabled {
-      background-color: #999;
-      cursor: not-allowed;
-    }
-
-    #message {
-      text-align: center;
-      margin-top: 10px;
-      font-weight: bold;
-    }
-
-    .error {
-      color: red;
-    }
-    .success {
-      color: green;
+      margin: 0 auto;
     }
   </style>
 </head>
 <body>
-
-  <h1>Agenda do Laboratório LabP2D</h1>
-
-  <form id="event-form">
-    <label for="userEmail">Seu E-mail:</label>
-    <input type="email" id="userEmail" name="userEmail" placeholder="seuemail@exemplo.com" required />
-
-    <label for="title">Título do Evento:</label>
-    <input type="text" id="title" name="title" placeholder="Ex: Reunião" required />
-
-    <label for="start">Data e Hora Início:</label>
-    <input type="datetime-local" id="start" name="start" required />
-
-    <label for="end">Data e Hora Fim:</label>
-    <input type="datetime-local" id="end" name="end" required />
-
-    <button type="submit">Agendar Evento</button>
-  </form>
-
-  <div id="message"></div>
-
+  <h1>Agenda LABP2D</h1>
   <div id="calendar"></div>
 
-  <!-- FullCalendar JS -->
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
-      const calendarEl = document.getElementById('calendar');
-      const messageEl = document.getElementById('message');
-      const form = document.getElementById('event-form');
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyp5tlqTuCAQeOYPwXeK38JFOxVKlQ0ZTqxLG5pFnKYmtKazzhp71Fq46TwzLHkgkrp/exec';
+    const userEmail = prompt("Informe seu e-mail institucional:");
 
-      // Configura o calendário
-      const calendar = new FullCalendar.Calendar(calendarEl, {
-        locale: 'pt-br',
-        initialView: 'dayGridMonth',
-        headerToolbar: {
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+    async function fetchEvents() {
+      const response = await fetch(API_URL);
+      const data = await response.json();
+      return data.map(event => ({
+        id: event.id,
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        extendedProps: { creator: event.creator }
+      }));
+    }
+
+    async function sendRequest(method, payload) {
+      const response = await fetch(API_URL, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
         },
-        events: {
-          url: 'https://script.google.com/macros/s/AKfycbzj0_yfV7rc2aVMMlUd1Di4aP4XPoGvT2V9Ia2k4B9KMEoDutwzsUHHbUgiS2CEbbc/exec',
-          failure: function () {
-            messageEl.textContent = 'Erro ao carregar eventos do Google Agenda.';
-            messageEl.className = 'error';
+        body: JSON.stringify(payload)
+      });
+      return response.json();
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const calendarEl = document.getElementById('calendar');
+      const events = await fetchEvents();
+
+      const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        selectable: true,
+        editable: true,
+        events,
+        select: async function(info) {
+          const title = prompt('Título do evento:');
+          if (title) {
+            const newEvent = {
+              userEmail,
+              title,
+              start: info.startStr,
+              end: info.endStr
+            };
+            const result = await sendRequest('POST', newEvent);
+            if (result.status === 'ok') {
+              calendar.addEvent({
+                id: result.eventId,
+                title,
+                start: info.startStr,
+                end: info.endStr,
+                extendedProps: { creator: userEmail }
+              });
+            } else {
+              alert(result.message);
+            }
+          }
+        },
+        eventChange: async function(changeInfo) {
+          const event = changeInfo.event;
+          if (event.extendedProps.creator !== userEmail) {
+            alert('Você não tem permissão para editar este evento.');
+            changeInfo.revert();
+            return;
+          }
+          const payload = {
+            userEmail,
+            eventId: event.id,
+            title: event.title,
+            start: event.start,
+            end: event.end
+          };
+          const result = await sendRequest('PUT', payload);
+          if (result.status !== 'ok') {
+            alert(result.message);
+            changeInfo.revert();
+          }
+        },
+        eventClick: async function(info) {
+          if (info.event.extendedProps.creator !== userEmail) {
+            alert('Você não tem permissão para excluir este evento.');
+            return;
+          }
+          if (confirm(`Deseja excluir o evento "${info.event.title}"?`)) {
+            const payload = {
+              userEmail,
+              eventId: info.event.id
+            };
+            const result = await sendRequest('DELETE', payload);
+            if (result.status === 'ok') {
+              info.event.remove();
+            } else {
+              alert(result.message);
+            }
           }
         }
       });
 
       calendar.render();
-
-      // envio do formulário para criar evento
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        messageEl.textContent = '';
-        messageEl.className = '';
-
-        const userEmail = form.userEmail.value.trim();
-        const title = form.title.value.trim();
-        const start = form.start.value;
-        const end = form.end.value;
-
-        if (new Date(start) >= new Date(end)) {
-          messageEl.textContent = 'A data e hora de início devem ser antes do fim.';
-          messageEl.className = 'error';
-          return;
-        }
-
-        // Desabilita o botão pra evitar múltiplos cliques
-        form.querySelector('button').disabled = true;
-
-        // Monta o corpo do POST para o Apps Script
-        const postData = {
-          userEmail,
-          title,
-          start,
-          end
-        };
-
-        fetch('https://script.google.com/macros/s/AKfycbzj0_yfV7rc2aVMMlUd1Di4aP4XPoGvT2V9Ia2k4B9KMEoDutwzsUHHbUgiS2CEbbc/exec', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(postData)
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.status === 'ok') {
-            messageEl.textContent = 'Evento criado com sucesso!';
-            messageEl.className = 'success';
-            form.reset();
-
-            // Atualiza o calendário para mostrar o novo evento
-            calendar.refetchEvents();
-          } else {
-            throw new Error(data.message || 'Erro ao criar evento.');
-          }
-        })
-        .catch(error => {
-          messageEl.textContent = 'Erro: ' + error.message;
-          messageEl.className = 'error';
-        })
-        .finally(() => {
-          form.querySelector('button').disabled = false;
-        });
-      });
     });
   </script>
-
 </body>
 </html>
